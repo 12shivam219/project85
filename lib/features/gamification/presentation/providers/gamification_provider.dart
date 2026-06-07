@@ -4,6 +4,7 @@ import '../../domain/user_profile.dart';
 import '../../domain/achievement.dart';
 import '../../../workout/domain/workout_session.dart';
 import '../../../../core/database/hive_boxes.dart';
+import '../../../../core/utils/notification_helper.dart';
 
 class UserProfileNotifier extends StateNotifier<UserProfile> {
   UserProfileNotifier() : super(UserProfile.defaultProfile()) {
@@ -22,11 +23,17 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
       state = UserProfile.defaultProfile();
       _saveProfile();
     }
+
+    // Schedule reminders on load
+    NotificationHelper.scheduleShiftReminders(state);
   }
 
   Future<void> _saveProfile() async {
     final box = Hive.box(HiveBoxes.userProfile);
     await box.put('current_profile', state.toMap());
+
+    // Refresh reminders whenever profile changes
+    await NotificationHelper.scheduleShiftReminders(state);
   }
 
   /// Adds XP, checks for level up

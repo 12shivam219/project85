@@ -187,12 +187,32 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> with SingleTi
       if (m.weightKg < minW) minW = m.weightKg;
       if (m.weightKg > maxW) maxW = m.weightKg;
     }
+    // Include 85kg in range if close
+    if (minW > 85) minW = 84;
+
     // Add padding to range
     minW = (minW - 5).clamp(0, 500);
     maxW = (maxW + 5).clamp(0, 500);
 
     return LineChart(
       LineChartData(
+        extraLinesData: ExtraLinesData(
+          horizontalLines: [
+            HorizontalLine(
+              y: 85,
+              color: AppColors.orange.withOpacity(0.6),
+              strokeWidth: 2,
+              dashArray: [5, 5],
+              label: HorizontalLineLabel(
+                show: true,
+                alignment: Alignment.topRight,
+                padding: const EdgeInsets.only(right: 10, bottom: 5),
+                style: const TextStyle(color: AppColors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                labelResolver: (line) => "GOAL: 85kg",
+              ),
+            ),
+          ],
+        ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,

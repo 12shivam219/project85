@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'core/database/hive_boxes.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/notification_helper.dart';
 import 'features/dashboard/presentation/screens/main_shell.dart';
 
 void main() async {
@@ -14,6 +15,9 @@ void main() async {
 
   // 2. Initialize timezone database
   tz.initializeTimeZones();
+
+  // 3. Initialize Notifications
+  await NotificationHelper.init();
 
   runApp(
     const ProviderScope(

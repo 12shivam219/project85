@@ -9,6 +9,7 @@ import '../../../../core/theme/color_palette.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/custom_progress.dart';
 import 'main_shell.dart';
+import '../providers/health_sync_provider.dart';
 import '../../../ai_coach/presentation/providers/ai_coach_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -33,7 +34,11 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               // 1. Header (User level & XP)
               _buildHeader(context, profile, xpPercent, xpNeeded),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // Watch Sync Button
+              _buildWatchSyncButton(context, ref),
+              const SizedBox(height: 16),
 
               // 2. Compliance Score Circular Ring (Game-like)
               _buildComplianceScore(context, dashboard),
@@ -483,6 +488,60 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     ).animate().fadeIn(delay: 250.ms, duration: 450.ms).slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildWatchSyncButton(BuildContext context, WidgetRef ref) {
+    final healthState = ref.watch(healthSyncProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      onTap: healthState.isSyncing ? null : () => ref.read(healthSyncProvider.notifier).syncData(),
+      child: Row(
+        children: [
+          Icon(
+            Icons.watch,
+            color: healthState.error != null ? AppColors.red : AppColors.info,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "NOISEFIT WATCH SYNC",
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                ),
+                Text(
+                  healthState.isSyncing
+                      ? "Reading from Health Connect..."
+                      : healthState.error != null
+                          ? healthState.error!
+                          : healthState.lastSyncTime != null
+                              ? "Last sync: ${healthState.lastSyncTime}"
+                              : "Tap to sync steps, weight & sleep.",
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: healthState.error != null ? AppColors.red : AppColors.textSecondaryDark
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (healthState.isSyncing)
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info),
+            )
+          else
+            const Icon(Icons.sync, size: 16, color: AppColors.info),
+        ],
+      ),
+    );
   }
 
   Widget _buildCircadianActions(BuildContext context, WidgetRef ref, dynamic profile) {

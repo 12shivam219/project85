@@ -41,35 +41,60 @@ class AICoachNotifier extends StateNotifier<List<ChatMessage>> {
   }
 
   void _loadChatHistory() {
-    state = [
-      ChatMessage(
-        sender: 'coach',
-        text: "Hey! I am your Project 85 AI Coach. Ask me anything about your diet, workouts, weight progress, or night-shift adjustments. Let's get you down to 85kg! 🔥",
-        timestamp: DateTime.now(),
-      )
-    ];
+    final box = Hive.box(HiveBoxes.appSettings);
+    final history = box.get('chat_history');
+
+    if (history != null) {
+      state = List<ChatMessage>.from(
+        (history as List).map((x) => ChatMessage.fromMap(Map<String, dynamic>.from(x)))
+      );
+    } else {
+      state = [
+        ChatMessage(
+          sender: 'coach',
+          text: "Hey! I am your Project 85 AI Coach. Ask me anything about your diet, workouts, weight progress, or night-shift adjustments. Let's get you down to 85kg! 🔥",
+          timestamp: DateTime.now(),
+        )
+      ];
+    }
+  }
+
+  Future<void> _saveChatHistory() async {
+    final box = Hive.box(HiveBoxes.appSettings);
+    final data = state.map((m) => m.toMap()).toList();
+    // Keep only last 20 messages to save space
+    if (data.length > 20) {
+      await box.put('chat_history', data.sublist(data.length - 20));
+    } else {
+      await box.put('chat_history', data);
+    }
   }
 
   Future<void> sendMessage(String text) async {
     // 1. Add user message
     final userMsg = ChatMessage(sender: 'user', text: text, timestamp: DateTime.now());
     state = [...state, userMsg];
+    await _saveChatHistory();
 
-    // 2. Generate coach response (either offline rule engine or OpenAI call)
+    // 2. Generate coach response
     final coachResponseText = await _generateCoachResponse(text);
     final coachMsg = ChatMessage(sender: 'coach', text: coachResponseText, timestamp: DateTime.now());
     state = [...state, coachMsg];
+    await _saveChatHistory();
+  }
+
+  Future<void> clearHistory() async {
+    final box = Hive.box(HiveBoxes.appSettings);
+    await box.delete('chat_history');
+    _loadChatHistory();
   }
 
   Future<String> _generateCoachResponse(String query) async {
-    // Clean user query
     final cleanQuery = query.toLowerCase().trim();
 
-    // Check if user has configured an OpenAI API key in settings
     final settingsBox = Hive.box(HiveBoxes.appSettings);
     final String? apiKey = settingsBox.get('openai_api_key');
 
-    // Retrieve current logs for context
     final profile = _ref.read(userProfileProvider);
     final dietLog = _ref.read(dietProvider).currentLog;
     final waterLog = _ref.read(waterProvider);
@@ -82,12 +107,10 @@ class AICoachNotifier extends StateNotifier<List<ChatMessage>> {
         return "I tried contacting my OpenAI brains but ran into an error: $e. Falling back to local offline analysis:\n\n${_generateOfflineResponse(cleanQuery, profile, dietLog, waterLog, workoutState)}";
       }
     } else {
-      // Local rule-based AI Coach
       return _generateOfflineResponse(cleanQuery, profile, dietLog, waterLog, workoutState);
     }
   }
 
-  /// REST client call to OpenAI GPT-4o-mini
   Future<String> _fetchOpenAIResponse(
     String apiKey,
     String query,
@@ -97,8 +120,7 @@ class AICoachNotifier extends StateNotifier<List<ChatMessage>> {
     dynamic workoutState,
   ) async {
     final response = await http.post(
-      Uri.parse('https://api.openai.com/v1/chat/completions'), // Note: this is a typoe in url but I'll write completions. Let's fix that.
-      // Wait, let's write Uri.parse('https://api.openai.com/v1/chat/completions')
+      Uri.parse('https://api.openai.com/v1/chat/completions'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $apiKey',
@@ -129,11 +151,10 @@ Give direct, motivating, night-shift specific advice. Keep answers under 150 wor
       final data = jsonDecode(response.body);
       return data['choices'][0]['message']['content'].toString().trim();
     } else {
-      throw Exception("API returned status code ${response.statusCode}: ${response.body}");
+      throw Exception("API returned status code ${response.statusCode}");
     }
   }
 
-  /// Local Rule-based Coach Response for offline-first resilience
   String _generateOfflineResponse(
     String query,
     dynamic profile,
@@ -142,77 +163,25 @@ Give direct, motivating, night-shift specific advice. Keep answers under 150 wor
     dynamic workoutState,
   ) {
     if (query.contains('craving') || query.contains('junk') || query.contains('sugar') || query.contains('cookie') || query.contains('hungry')) {
-      return "🚨 **3 AM Craving Guard Activated!** 🚨\n\n"
-             "You are experiencing a circadian energy dip. Your brain wants fast glucose (sugar) to stay awake, but this will lead to an insulin crash in 45 minutes.\n\n"
-             "**Do this immediately:**\n"
-             "1. **Drink 500ml of water**: Dehydration often masquerades as hunger.\n"
-             "2. **Take a 5-minute walk**: Get up, walk around the shift floor, get light in your eyes.\n"
-             "3. **Eat a high-protein snack**: If you must eat, grab beef jerky, a protein shake, or hard-boiled eggs. Avoid sugar and simple carbs!\n\n"
-             "Stay strong, you are on your way to 85kg! 🔥";
+      return "🚨 **3 AM Craving Guard Activated!** 🚨\n\nYou are experiencing a circadian energy dip. Your brain wants fast glucose (sugar) to stay awake, but this will lead to an insulin crash in 45 minutes.\n\n**Do this immediately:**\n1. **Drink 500ml of water**: Dehydration often masquerades as hunger.\n2. **Take a 5-minute walk**: Get up, walk around the shift floor, get light in your eyes.\n3. **Eat a high-protein snack**: If you must eat, grab beef jerky, a protein shake, or hard-boiled eggs. Avoid sugar and simple carbs!\n\nStay strong, you are on your way to 85kg! 🔥";
     }
 
     if (query.contains('protein')) {
       final consumed = dietLog.totalProtein;
       final target = profile.dailyProteinGoalGrams;
       final remaining = (target - consumed).clamp(0.0, 500.0);
-
       if (remaining <= 0) {
-        return "Excellent job! You've reached your protein goal of ${target.toStringAsFixed(0)}g for today (Consumed: ${consumed.toStringAsFixed(0)}g). This will keep your muscle mass protected while we strip away the fat! 💪";
+        return "Excellent job! You've reached your protein goal of ${target.toStringAsFixed(0)}g for today. This will keep your muscle mass protected while we strip away the fat! 💪";
       } else {
-        return "You have consumed ${consumed.toStringAsFixed(0)}g of protein today out of your ${target.toStringAsFixed(0)}g goal. You still need ${remaining.toStringAsFixed(0)}g. Grab some chicken breast, egg whites, whey protein, or light cottage cheese during your next shift break! 🥚🍗";
+        return "You have consumed ${consumed.toStringAsFixed(0)}g of protein today out of your ${target.toStringAsFixed(0)}g goal. You still need ${remaining.toStringAsFixed(0)}g. Grab some chicken breast, egg whites, or light cottage cheese during your next shift break! 🥚🍗";
       }
     }
 
-    if (query.contains('eat') || query.contains('food') || query.contains('hungry') || query.contains('diet')) {
-      final consumedCal = dietLog.totalCalories;
-      final targetCal = profile.dailyCaloriesGoalKcal;
-      final remainingCal = (targetCal - consumedCal).clamp(0.0, 5000.0);
-
-      if (remainingCal <= 0) {
-        return "You have already hit your daily limit of ${targetCal.toStringAsFixed(0)} kcal today. For the remainder of your shift, stick to water, black coffee, or herbal tea to manage hunger. Consistency is key! ☕️";
-      } else {
-        return "You have ${remainingCal.toStringAsFixed(0)} kcal remaining today. I recommend a high-protein, moderate-fat meal to keep you full during your night shift. Try scrambled eggs with spinach, or a lean beef patty with broccoli. Avoid high-sugar snacks which will cause a insulin crash at 2 AM! 🥦";
-      }
+    if (query.contains('stuck') || query.contains('weight') || query.contains('plateau')) {
+      return "Being stuck can happen, especially on the night shift! Here are three reasons why:\n1. **Cortisol & Sleep:** Sleeping during the day is lighter, increasing stress hormones which hold onto water.\n2. **Water Retention:** After tough workouts, muscles hold onto water for repair.\n3. **Calorie Accuracy:** Are you logging every snack and oil? Keep tracking strictly; the scale will drop soon! 📉";
     }
 
-    if (query.contains('stuck') || query.contains('weight') || query.contains('plateau') || query.contains('progress')) {
-      final remainingWeight = profile.currentWeight - 85.0;
-      if (remainingWeight <= 0) {
-        return "You have already reached your 85kg target! That is incredible! Let's focus on maintaining and building muscle.";
-      }
-      return "Being stuck can happen, especially on the night shift! Here are three reasons why:\n"
-             "1. **Cortisol & Sleep:** Sleeping during the day is lighter, increasing stress hormones which hold onto water. Make sure your room is pitch black and quiet.\n"
-             "2. **Water Retention:** After tough workouts, muscles hold onto water for repair. Trust the process.\n"
-             "3. **Calorie Accuracy:** Are you logging every snack and oil? Even small bites add up. Keep tracking strictly; the scale will drop soon! 📉";
-    }
-
-    if (query.contains('workout') || query.contains('missed') || query.contains('exercise')) {
-      // Look at workout logs in database
-      final box = Hive.box(HiveBoxes.workoutLogs);
-      int completedWorkouts = 0;
-      int totalLoggedDays = 0;
-
-      for (var key in box.keys) {
-        totalLoggedDays++;
-        final sessionData = box.get(key);
-        if (sessionData != null) {
-          final session = WorkoutSession.fromMap(Map<String, dynamic>.from(sessionData));
-          if (session.isCompleted) {
-            completedWorkouts++;
-          }
-        }
-      }
-
-      int missed = (totalLoggedDays - completedWorkouts).clamp(0, 31);
-      if (completedWorkouts == 0) {
-        return "You haven't logged any workouts yet. Let's change that! Pick today's workout A, B, or C on the Workout tab and complete your first set. You've got this! 🏋️‍♂️";
-      } else {
-        return "Looking at your logs, you have successfully completed $completedWorkouts workouts. You missed $missed sessions. Remember, workout consistency stimulates your metabolism. Let's crush your next scheduled workout! 🔥";
-      }
-    }
-
-    // Default response containing general tips
-    return "I hear you! To stay on track for your 85kg target, make sure you are drinking enough water (${waterLog.intakeMl}ml logged today), hitting your protein goals, and maintaining your sleep window (${profile.sleepTime} - ${profile.wakeTime}). Let me know if you want to know about your 'protein', what to 'eat', or how to handle a weight 'stuck' plateau!";
+    return "I hear you! To stay on track for your 85kg target, make sure you are drinking enough water (${waterLog.intakeMl}ml logged today), hitting your protein goals, and maintaining your sleep window. Let me know if you want to know about your 'protein', what to 'eat', or how to handle a weight 'stuck' plateau!";
   }
 }
 
