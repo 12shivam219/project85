@@ -1,37 +1,40 @@
 # Project 85 🚀
 
-**Project 85** is a specialized fitness and health ecosystem designed specifically for night-shift workers. It solves the unique circadian and metabolic challenges of working while the world sleeps, helping you transform your body and hit your goal weight (85kg).
+**Project 85** is a high-performance fitness and health ecosystem specifically engineered for night-shift workers. It overcomes the metabolic and circadian challenges of "living against the clock," helping users reach their target weight of 85kg with precision and AI-driven support.
 
 ## 🌟 Key Features
 
-- **🌙 Night Shift Optimization:** Tracking and advice tailored to shifted sleep/wake cycles.
-- **🏋️ Workout Tracker:** Pre-set training splits (Lower, Upper, Full Body) with progressive overload tracking.
-- **🥗 Diet & Nutrition:** Macro-focused meal logging synced to your shift schedule.
-- **💧 Hydration Tracker:** Stay alert and hydrated with visual water intake monitoring.
-- **🤖 AI Coach:** Instant support for midnight cravings and shift-work fatigue.
-- **📊 Advanced Analytics:** Weight trends, body measurement logs, and progress photo comparisons.
-- **🎮 Gamification:** Level up, earn XP, and unlock badges as you stay consistent.
+- **⌚ Noisefit Watch Sync:** Integrated via Google Health Connect. Automatically syncs steps, sleep duration, and weight logs.
+- **🤖 Proactive AI Coach:** Powered by **Groq (Llama 3.1)**. Get instant advice on midnight cravings, shift fatigue, and macro adjustments.
+- **⏰ Circadian Notification Engine:** Smart reminders for your 3 major shift meals and hydration windows, plus wind-down alerts before sleep.
+- **🏋️ Professional Workout Tracker:** Pre-set training splits (Lower, Upper, Full Body) with progressive overload logging.
+- **🥗 Shift-Optimized Nutrition:** Macro-focused meal logging tailored to your specific wake/sleep hours.
+- **📈 Advanced Analytics:** Visual weight trend charts with an 85kg goal line and body measurement tracking.
+- **🛡️ Enterprise-Grade Security:** AES-encrypted local database and hardware-backed secret storage (Android Keystore).
 
-## 📱 Installation
+## 🚀 Getting Started (Real-World Use)
 
-Since this app is currently in a community-driven "Free-to-Use" phase, you can download the latest version directly:
+### 1. Installation
+Download the latest **Release APK** from the [Releases](https://github.com/12shivam219/project85/releases) section and install it on your Android device.
 
-1. Visit the [Releases](https://github.com/12shivam219/project85/releases) page.
-2. Download the `app-release.apk` file.
-3. Open the file on your Android device and select "Install".
-   - *Note: You may need to enable "Install from Unknown Sources" in your phone settings.*
+### 2. Setup AI Coach (Free)
+1. Get a free API Key from [console.groq.com](https://console.groq.com/).
+2. In the app, go to **Settings > Groq AI Engine Config** and paste your key.
+3. Your AI Coach is now active!
+
+### 3. Setup Watch Sync
+1. Ensure your **NoiseFit app** is syncing to **Google Fit**.
+2. Install **Health Connect** (by Google) if not already on your phone.
+3. Grant permissions in the app by tapping **"Noisefit Watch Sync"** on the Dashboard.
 
 ## 🛠️ Tech Stack
 
-- **Framework:** [Flutter](https://flutter.dev/)
-- **State Management:** [Riverpod](https://riverpod.dev/)
-- **Local Database:** [Hive](https://docs.hivedb.dev/)
-- **Animations:** [Flutter Animate](https://pub.dev/packages/flutter_animate)
-- **Charts:** [FL Chart](https://pub.dev/packages/fl_chart)
-
-## 🤝 Contributing
-
-This is an open project. Feel free to fork, submit PRs, or report issues!
+- **Framework:** Flutter (3.12+)
+- **State Management:** Riverpod
+- **Local DB:** Hive (AES Encrypted)
+- **AI Engine:** Groq Cloud (Llama 3.1)
+- **Health Integration:** Google Health Connect
+- **Security:** Hardware-backed Keystore
 
 ---
-*Built with ❤️ for the Night Shift Warriors.*
+*Built for the Night Shift Warriors. Transform your shift, transform your life.*
