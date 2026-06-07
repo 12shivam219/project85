@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/utils/calculators.dart';
 import '../../../../core/utils/file_exporter.dart';
+import '../../../../core/utils/security_helper.dart';
 import '../../../../core/database/hive_boxes.dart';
 import '../../../measurements/presentation/providers/measurement_provider.dart';
 import '../../../diet/domain/meal.dart';
@@ -26,8 +27,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    final box = Hive.box(HiveBoxes.appSettings);
-    _apiKeyController.text = box.get('openai_api_key', defaultValue: '');
+    _loadApiKey();
+  }
+
+  Future<void> _loadApiKey() async {
+    final key = await SecurityHelper.getSecureString('groq_api_key');
+    if (mounted) {
+      setState(() {
+        _apiKeyController.text = key ?? '';
+      });
+    }
   }
 
   @override
@@ -74,10 +83,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _buildCalculatorsCard(context, profile),
               const SizedBox(height: 24),
 
-              // 4. OpenAI Integration
-              _buildSectionTitle("AI ENGINE CONFIG"),
+              // 4. Groq AI Integration
+              _buildSectionTitle("GROQ AI ENGINE CONFIG"),
               const SizedBox(height: 8),
-              _buildOpenAIConfigCard(context),
+              _buildGroqConfigCard(context),
               const SizedBox(height: 24),
 
               // 5. Data Export
@@ -201,13 +210,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildOpenAIConfigCard(BuildContext context) {
+  Widget _buildGroqConfigCard(BuildContext context) {
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Paste your OpenAI API Key below to activate real-time AI Coach advice. Leave empty to use local offline coaching.",
+            "Paste your Groq API Key below to activate real-time Llama 3 AI Coach advice. It's fast and free at groq.com.",
             style: TextStyle(fontSize: 12, color: AppColors.textSecondaryDark, height: 1.4),
           ),
           const SizedBox(height: 12),
@@ -215,7 +224,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             controller: _apiKeyController,
             obscureText: true,
             decoration: const InputDecoration(
-              hintText: "sk-proj-...",
+              hintText: "gsk_...",
               border: OutlineInputBorder(),
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
@@ -223,10 +232,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: () async {
-              final box = Hive.box(HiveBoxes.appSettings);
-              await box.put('openai_api_key', _apiKeyController.text.trim());
+              final key = _apiKeyController.text.trim();
+              await SecurityHelper.saveSecureString('groq_api_key', key);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("OpenAI API Key saved successfully.")),
+                const SnackBar(content: Text("Groq API Key saved securely.")),
               );
             },
             style: ElevatedButton.styleFrom(
@@ -235,11 +244,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               minimumSize: const Size(double.infinity, 36),
               elevation: 0,
             ),
-            child: const Text("Save API Key", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            child: const Text("Save Groq Key", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 250.ms, duration: 350.ms);
+    );
   }
 
   Widget _buildExportCard(BuildContext context) {

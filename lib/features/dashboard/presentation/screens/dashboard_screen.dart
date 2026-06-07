@@ -492,7 +492,6 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildWatchSyncButton(BuildContext context, WidgetRef ref) {
     final healthState = ref.watch(healthSyncProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

@@ -6,8 +6,8 @@ import '../../../gamification/presentation/providers/gamification_provider.dart'
 import '../../../diet/presentation/providers/diet_provider.dart';
 import '../../../water/presentation/providers/water_provider.dart';
 import '../../../workout/presentation/providers/workout_provider.dart';
-import '../../../workout/domain/workout_session.dart';
 import '../../../../core/database/hive_boxes.dart';
+import '../../../../core/utils/security_helper.dart';
 
 class ChatMessage {
   final String sender; // 'user' or 'coach'
@@ -92,8 +92,8 @@ class AICoachNotifier extends StateNotifier<List<ChatMessage>> {
   Future<String> _generateCoachResponse(String query) async {
     final cleanQuery = query.toLowerCase().trim();
 
-    final settingsBox = Hive.box(HiveBoxes.appSettings);
-    final String? apiKey = settingsBox.get('openai_api_key');
+    // Check if user has configured a Groq API key in secure storage
+    final String? apiKey = await SecurityHelper.getSecureString('groq_api_key');
 
     final profile = _ref.read(userProfileProvider);
     final dietLog = _ref.read(dietProvider).currentLog;
@@ -102,16 +102,17 @@ class AICoachNotifier extends StateNotifier<List<ChatMessage>> {
 
     if (apiKey != null && apiKey.isNotEmpty) {
       try {
-        return await _fetchOpenAIResponse(apiKey, query, profile, dietLog, waterLog, workoutState);
+        return await _fetchGroqResponse(apiKey, query, profile, dietLog, waterLog, workoutState);
       } catch (e) {
-        return "I tried contacting my OpenAI brains but ran into an error: $e. Falling back to local offline analysis:\n\n${_generateOfflineResponse(cleanQuery, profile, dietLog, waterLog, workoutState)}";
+        return "I tried contacting my Groq AI brains but ran into an error. Falling back to local offline analysis:\n\n${_generateOfflineResponse(cleanQuery, profile, dietLog, waterLog, workoutState)}";
       }
     } else {
       return _generateOfflineResponse(cleanQuery, profile, dietLog, waterLog, workoutState);
     }
   }
 
-  Future<String> _fetchOpenAIResponse(
+  /// REST client call to Groq Cloud (Free Llama 3)
+  Future<String> _fetchGroqResponse(
     String apiKey,
     String query,
     dynamic profile,
@@ -120,13 +121,13 @@ class AICoachNotifier extends StateNotifier<List<ChatMessage>> {
     dynamic workoutState,
   ) async {
     final response = await http.post(
-      Uri.parse('https://api.openai.com/v1/chat/completions'),
+      Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $apiKey',
       },
       body: jsonEncode({
-        'model': 'gpt-4o-mini',
+        'model': 'llama-3.1-8b-instant',
         'messages': [
           {
             'role': 'system',
@@ -143,7 +144,7 @@ Give direct, motivating, night-shift specific advice. Keep answers under 150 wor
           {'role': 'user', 'content': query}
         ],
         'temperature': 0.7,
-        'max_tokens': 200,
+        'max_tokens': 300,
       }),
     );
 
@@ -151,7 +152,7 @@ Give direct, motivating, night-shift specific advice. Keep answers under 150 wor
       final data = jsonDecode(response.body);
       return data['choices'][0]['message']['content'].toString().trim();
     } else {
-      throw Exception("API returned status code ${response.statusCode}");
+      throw Exception("Groq API error: ${response.statusCode}");
     }
   }
 

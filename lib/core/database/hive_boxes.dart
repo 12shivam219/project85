@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import '../utils/security_helper.dart';
 
 class HiveBoxes {
   static const String userProfile = 'user_profile_box';
@@ -14,8 +15,15 @@ class HiveBoxes {
   static Future<void> init() async {
     await Hive.initFlutter();
     
-    // Open all required boxes
-    await Hive.openBox(userProfile);
+    // Get secure encryption key for sensitive data
+    final encryptionKey = await SecurityHelper.getEncryptionKey();
+    final cipher = HiveAesCipher(encryptionKey);
+
+    // Open boxes (Encrypted for sensitive data)
+    await Hive.openBox(userProfile, encryptionCipher: cipher);
+    await Hive.openBox(appSettings, encryptionCipher: cipher);
+
+    // Standard data (Unencrypted for better performance/simplicity)
     await Hive.openBox(weightHistory);
     await Hive.openBox(measurementHistory);
     await Hive.openBox(dietLogs);
@@ -23,10 +31,9 @@ class HiveBoxes {
     await Hive.openBox(workoutLogs);
     await Hive.openBox(habitLogs);
     await Hive.openBox(progressPhotos);
-    await Hive.openBox(appSettings);
   }
 
-  /// Helper to clear all database storage (for resetting data)
+  /// Helper to clear all database storage
   static Future<void> clearAll() async {
     await Hive.box(userProfile).clear();
     await Hive.box(weightHistory).clear();
@@ -37,5 +44,6 @@ class HiveBoxes {
     await Hive.box(habitLogs).clear();
     await Hive.box(progressPhotos).clear();
     await Hive.box(appSettings).clear();
+    await SecurityHelper.deleteSecureString('openai_api_key');
   }
 }
